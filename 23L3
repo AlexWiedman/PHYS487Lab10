@@ -1,0 +1,172 @@
+/*********************************************************************
+*                    SEGGER Microcontroller GmbH                     *
+*                        The Embedded Experts                        *
+**********************************************************************
+
+-------------------------- END-OF-HEADER -----------------------------
+
+File    : main.c
+Purpose : Generic application start
+
+*/
+
+#include "samd21.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+/*********************************************************************
+*
+*       main()
+*
+*  Function description
+*   Application entry point.
+*/
+volatile uint32_t msTicks = 0; // ms since program start
+
+void SysTick_Handler(void) {
+  msTicks++;
+}
+
+void Delay(uint32_t mSec){
+  uint32_t EndCount;
+  
+  EndCount = msTicks + mSec;
+
+  while(msTicks < EndCount){
+  __WFE();
+  }
+}
+
+
+
+#define ROW0 PORT_PA14
+#define ROW1 PORT_PA09
+#define ROW2 PORT_PA08
+#define ROW3 PORT_PA15
+
+#define COL0 PORT_PA20
+#define COL1 PORT_PA21
+#define COL2 PORT_PA06
+#define COL3 PORT_PA07
+
+
+
+int main(void) {
+
+  SysTick_Config(SystemCoreClock/1000);
+  int rowcheck = 0;
+
+  REG_PORT_DIRSET0 = ROW0 | ROW1 | ROW2 | ROW3;
+  REG_PORT_OUTCLR0 = ROW0 | ROW1 | ROW2 | ROW3;
+
+  REG_PORT_DIRCLR0 = COL0 | COL1 | COL2 | COL3;
+  PORT->Group[0].PINCFG[PIN_PA20].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+  PORT->Group[0].PINCFG[PIN_PA21].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+  PORT->Group[0].PINCFG[PIN_PA06].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+  PORT->Group[0].PINCFG[PIN_PA07].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+  REG_PORT_OUTCLR0 = COL0 | COL1 | COL2 | COL3;
+
+  
+
+  while(1){
+    switch (rowcheck){
+      case 0:
+        REG_PORT_OUTSET0 = ROW0;
+        if((REG_PORT_IN0 & COL0)){
+          printf("%d\n", 1);
+        }
+        else if((REG_PORT_IN0 & COL1)){
+          printf("%d\n", 2);
+        }
+        else if((REG_PORT_IN0 & COL2)){
+          printf("%d\n", 3);
+        }
+        else if((REG_PORT_IN0 & COL3)){
+          printf("A\n");
+        }
+        while((REG_PORT_IN0 & (COL0 | COL1 | COL2 | COL3))){
+        Delay(1);
+        }
+        rowcheck++;
+        REG_PORT_OUTCLR0 = ROW0;
+        break;
+
+      case 1:
+        REG_PORT_OUTSET0 = ROW1;
+        if((REG_PORT_IN0 & COL0)){
+          printf("%d\n", 4);
+        }
+        else if((REG_PORT_IN0 & COL1)){
+          printf("%d\n", 5);
+        }
+        else if((REG_PORT_IN0 & COL2)){
+          printf("%d\n", 6);
+        }
+        else if((REG_PORT_IN0 & COL3)){
+          printf("B\n");
+        }
+        while((REG_PORT_IN0 & (COL0 | COL1 | COL2 | COL3))){
+        Delay(1);
+        }
+        rowcheck++;
+        REG_PORT_OUTCLR0 = ROW1;
+        break;
+
+      case 2:
+        REG_PORT_OUTSET0 = ROW2;
+        if((REG_PORT_IN0 & COL0)){
+          printf("%d\n", 7);
+        }
+        else if((REG_PORT_IN0 & COL1)){
+          printf("%d\n", 8);
+        }
+        else if((REG_PORT_IN0 & COL2)){
+          printf("%d\n", 9);
+        }
+        else if((REG_PORT_IN0 & COL3)){
+          printf("C\n");
+        }
+        while((REG_PORT_IN0 & (COL0 | COL1 | COL2 | COL3))){
+        Delay(1);
+        }
+        rowcheck++;
+        REG_PORT_OUTCLR0 = ROW2;
+        break;
+
+      case 3:
+        REG_PORT_OUTSET0 = ROW3;
+        if((REG_PORT_IN0 & COL0)){
+          printf("*\n");
+        }
+        else if((REG_PORT_IN0 & COL1)){
+          printf("%d\n", 0);
+        }
+        else if((REG_PORT_IN0 & COL2)){
+          printf("#\n");
+        }
+        else if((REG_PORT_IN0 & COL3)){
+          printf("D\n");
+        }
+        while((REG_PORT_IN0 & (COL0 | COL1 | COL2 | COL3))){
+        Delay(1);
+        }
+        rowcheck++;
+        REG_PORT_OUTCLR0 = ROW3;
+        break;
+
+      case 4:
+        rowcheck = 0;
+        break;
+
+      default:
+        rowcheck = 0;
+        break;
+
+    
+    }
+  }
+
+  return 0;
+}
+
+/*************************** End of file ****************************/
