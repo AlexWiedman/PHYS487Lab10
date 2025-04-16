@@ -1,0 +1,142 @@
+/*********************************************************************
+*                    SEGGER Microcontroller GmbH                     *
+*                        The Embedded Experts                        *
+**********************************************************************
+
+-------------------------- END-OF-HEADER -----------------------------
+
+File    : main.c
+Purpose : Generic application start
+
+*/
+
+#include "samd21.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+
+/*********************************************************************
+*
+*       main()
+*
+*  Function description
+*   Application entry point.
+*/
+volatile uint32_t msTicks = 0; // ms since program start
+
+void SysTick_Handler(void) {
+  msTicks++;
+}
+
+void Delay(uint32_t mSec){
+  uint32_t EndCount;
+  
+  EndCount = msTicks + mSec;
+
+  while(msTicks < EndCount){
+  __WFE();
+  }
+}
+#define FSM_CLK 500
+#define PORT_LED_P10 PORT_PA18   
+#define PORT_PB_P00 PORT_PA11
+#define BLINK_OFF 0
+#define BLINK_START 1
+#define BLINK_LEDOFF 2
+#define BLINK_LEDON 3
+#define BLINK_STOP 4
+#define OFF false
+#define ON true
+
+bool IsBtnPressed(void){
+   if ((REG_PORT_IN0 & PORT_PB_P00) == 0){
+	  return true;                  //active low PB
+   } else {
+      return false;  
+   }
+}
+
+void SetLEDState(bool LEDState){
+   if (LEDState == OFF){
+      REG_PORT_OUTCLR0 = PORT_LED_P10;    // turn LED off	   
+   } else {
+      REG_PORT_OUTSET0 = PORT_LED_P10;    // turn LED on (active low)       	   
+   }
+}
+
+
+int main(void) {
+
+  SysTick_Config(SystemCoreClock/1000);
+
+  REG_PORT_DIRSET0 = PORT_LED_P10; // PA18 output
+  REG_PORT_OUTCLR0 = PORT_LED_P10; // LED Off
+  int state = 0;
+  uint32_t endticks;
+
+  REG_PORT_DIRCLR0 = PORT_PB_P00; // P00 is button pin, set to input   
+  PORT->Group[0].PINCFG[PIN_PA18].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+  PORT->Group[0].PINCFG[PIN_PA11].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;  // Register drivers for pulling voltage and input for button    
+  REG_PORT_OUTSET0 = PORT_PB_P00; // set default voltage for button pin to high
+
+  while(1){
+    endticks = msTicks + FSM_CLK;
+  
+    switch(state) {
+
+    case(BLINK_OFF):
+      SetLEDState(OFF);
+      if (IsBtnPressed()){
+        state = BLINK_START; 
+      }
+      break;
+    
+    case(BLINK_START):
+      SetLEDState(ON);
+      if (!IsBtnPressed()){
+         state = BLINK_LEDOFF; 
+      }
+      break;
+
+    case(BLINK_LEDOFF):
+      SetLEDState(OFF);
+      if (IsBtnPressed()){
+        state = BLINK_STOP;
+      }else{
+        state = BLINK_LEDON;
+      }
+      break;
+
+
+    case(BLINK_LEDON):
+      SetLEDState(ON);
+      if (IsBtnPressed()){
+        state = BLINK_STOP;
+      }else{
+        state = BLINK_LEDOFF;
+      }
+      break;
+
+    case(BLINK_STOP):
+      SetLEDState(OFF);
+      if (!IsBtnPressed()){
+         state = BLINK_OFF; 
+      }
+      break;
+    default:
+      state = BLINK_OFF;
+      break;
+
+  
+
+    }
+    while (msTicks < endticks){
+         __WFE ();
+      } 
+  } 
+
+
+  return 0;
+}
+
+/*************************** End of file ****************************/
