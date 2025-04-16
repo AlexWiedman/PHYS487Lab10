@@ -1,0 +1,85 @@
+/*********************************************************************
+*                    SEGGER Microcontroller GmbH                     *
+*                        The Embedded Experts                        *
+**********************************************************************
+
+-------------------------- END-OF-HEADER -----------------------------
+
+File    : main.c
+Purpose : Generic application start
+
+*/
+
+#include "samd21.h"
+#include <stdio.h>
+#include <stdlib.h>
+
+/*********************************************************************
+*
+*       main()
+*
+*  Function description
+*   Application entry point.
+*/
+volatile uint32_t msTicks = 0; // ms since program start
+
+void SysTick_Handler(void) {
+  msTicks++;
+}
+
+void Delay(uint32_t mSec){
+  uint32_t EndCount;
+  
+  EndCount = msTicks + mSec;
+
+  while(msTicks < EndCount){
+  __WFE();
+  }
+}
+
+#define PORT_LED_P10 PORT_PA18   
+#define PORT_PB_P00 PORT_PA11
+
+int LED_off(void){
+  return !(REG_PORT_IN0 & PORT_LED_P10); // if off, return true
+}
+
+
+int main(void) {
+
+  SysTick_Config(SystemCoreClock/1000);
+
+  REG_PORT_DIRSET0 = PORT_LED_P10; // PA18 output
+  REG_PORT_OUTCLR0 = PORT_LED_P10; // LED Off
+  int button_press = 0;
+
+  REG_PORT_DIRCLR0 = PORT_PB_P00; // P00 is button pin, set to input   
+  PORT->Group[0].PINCFG[PIN_PA18].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;
+  PORT->Group[0].PINCFG[PIN_PA11].reg = PORT_PINCFG_INEN | PORT_PINCFG_PULLEN;  // Register drivers for pulling voltage and input for button    
+  REG_PORT_OUTSET0 = PORT_PB_P00; // set default voltage for button pin to high
+
+  while(1){
+    if (!(REG_PORT_IN0 & PORT_PB_P00)){
+    
+        REG_PORT_OUTTGL0 = PORT_LED_P10; // Toggle LED
+        while(!(REG_PORT_IN0 & PORT_PB_P00)){
+        Delay(1);
+        }
+        if(!(LED_off())){
+          while(!(button_press)){
+            REG_PORT_OUTTGL0 = PORT_LED_P10;
+            Delay(500);
+            if(!(REG_PORT_IN0 & PORT_PB_P00)){
+              button_press = 1;
+            }
+          }
+          button_press = 0;
+        }
+      Delay(500);
+    } 
+  }
+
+  return 0;
+}
+
+/*************************** End of file ****************************/
